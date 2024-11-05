@@ -13,11 +13,11 @@ public static class CurrencyRatesExtractor
         var rows = csv.Split("\r\n");
 
         var ratesRow = rows
-            .First(s => s.Contains(date.ToString("dd-MMM-yyyy")))
+            .First(s => s.StartsWith(date.ToString("dd-MMM-yyyy")))
             .Split(',');
 
         return rows
-            .First(s => s.Contains("A$"))
+            .First(s => s.StartsWith("Title"))
             .Split(',')
             .Select((row, i) => (Code: row.Contains("A$") ? row.Substring(4, 3) : null, Index: i))
             .Select(currencyIndex =>
@@ -45,26 +45,29 @@ public static class CurrencyRatesExtractor
         
         foreach (var line in csv.AsSpan().EnumerateLines())
         {
-            if (line.Contains("A$", StringComparison.InvariantCultureIgnoreCase))
+            if (line.StartsWith("Title", StringComparison.InvariantCultureIgnoreCase))
             {
                 codeLine = line;
                 line.Split(codeRanges, ',', StringSplitOptions.TrimEntries);
             }
 
-            if (line.Contains(date.ToString("dd-MMM-yyyy"), StringComparison.InvariantCultureIgnoreCase))
+            if (line.StartsWith(date.ToString("dd-MMM-yyyy"), StringComparison.InvariantCultureIgnoreCase))
             {
                 rateLine = line;
                 line.Split(rateRanges, ',', StringSplitOptions.TrimEntries);
+                break;
             }
         }
 
         for (var i = 0; i < codeRanges.Length; i++)
         {
+            var rateRange = rateRanges[i];
+            if (rateRange.End.Value - rateRange.Start.Value == 0)
+                continue;
+            
             var codeChars = codeLine[codeRanges[i]];
-            var rateChars = rateLine[rateRanges[i]];
-
-            if (codeChars.Contains("A$", StringComparison.InvariantCultureIgnoreCase) && decimal.TryParse(rateChars, out var rate))
-                result.Add(new CurrencyRate(codeChars.Slice(4, 3).ToString(), rate));
+            if (codeChars.Contains("A$", StringComparison.InvariantCultureIgnoreCase))
+                result.Add(new CurrencyRate(codeChars.Slice(4, 3).ToString(), decimal.Parse(rateLine[rateRange])));
         }
 
         return result.ToArray();
