@@ -12,24 +12,23 @@ public static class CurrencyRatesExtractor
     {
         var rows = csv.Split("\r\n");
 
-        var ratesRow = rows
-            .First(s => s.StartsWith(date.ToString("dd-MMM-yyyy")))
-            .Split(',');
-
         return rows
             .First(s => s.StartsWith("Title"))
             .Split(',')
-            .Select((row, i) => (Code: row.Contains("A$") ? row.Substring(4, 3) : null, Index: i))
-            .Select(currencyIndex =>
-            {
-                var rateString = ratesRow[currencyIndex.Index];
-                if (currencyIndex.Code is null || rateString is "")
-                    return null;
-
-                return new CurrencyRate(currencyIndex.Code!, decimal.Parse(rateString));
-            })
-            .Where(rate => rate is not null)
-            .ToArray()!;
+            .Select((row, i) => (Code: row.StartsWith("A$1=") ? row.Substring(4, 3) : string.Empty, Index: i))
+            .Where(codes => codes.Code is not "")
+            .ToArray()
+            .Join(
+                inner: rows
+                    .First(s => s.StartsWith(date.ToString("dd-MMM-yyyy")))
+                    .Split(',')
+                    .Select((rateStr, index) => (Rate: decimal.TryParse(rateStr, out var rate1) ? rate1 : -1, Index: index))
+                    .Where(rates => rates.Rate > 0)
+                    .ToArray(), 
+                outerKeySelector: code => code.Index, 
+                innerKeySelector: rate => rate.Index, 
+                resultSelector: (code, rate) => new CurrencyRate(code.Code, rate.Rate))
+            .ToArray();
     }
 
     public static CurrencyRate[] GetRatePerformance(string csv, DateOnly date)
