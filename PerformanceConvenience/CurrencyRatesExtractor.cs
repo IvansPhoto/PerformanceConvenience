@@ -12,22 +12,22 @@ public static class CurrencyRatesExtractor
     {
         var rows = csv.Split("\r\n");
 
-        return rows
+        var rates = rows
+            .First(s => s.StartsWith(date.ToString("dd-MMM-yyyy")))
+            .Split(',')
+            .Select((rateStr, index) => (Rate: decimal.TryParse(rateStr, out var rate1) ? rate1 : -1, Index: index))
+            .Where(rates => rates.Rate > 0)
+            .ToArray();
+        
+        var codes = rows
             .First(s => s.StartsWith("Title"))
             .Split(',')
             .Select((row, i) => (Code: row.StartsWith("A$1=") ? row.Substring(4, 3) : string.Empty, Index: i))
             .Where(codes => codes.Code is not "")
-            .ToArray()
-            .Join(
-                inner: rows
-                    .First(s => s.StartsWith(date.ToString("dd-MMM-yyyy")))
-                    .Split(',')
-                    .Select((rateStr, index) => (Rate: decimal.TryParse(rateStr, out var rate1) ? rate1 : -1, Index: index))
-                    .Where(rates => rates.Rate > 0)
-                    .ToArray(), 
-                outerKeySelector: code => code.Index, 
-                innerKeySelector: rate => rate.Index, 
-                resultSelector: (code, rate) => new CurrencyRate(code.Code, rate.Rate))
+            .ToArray();
+        
+        return codes
+            .Join(rates, code => code.Index, rate => rate.Index, (code, rate) => new CurrencyRate(code.Code, rate.Rate))
             .ToArray();
     }
 
@@ -71,51 +71,6 @@ public static class CurrencyRatesExtractor
 
         return result.ToArray();
     }
-
-    public static CurrencyRate[] Get1(string csv, DateOnly date)
-    {
-        Span<Range> rowRanges = stackalloc Range[5000];
-        csv.AsSpan().Split(rowRanges, "\r\n");
-        
-        
-        Span<Range> codeRanges = stackalloc Range[18];
-        csv.AsSpan(rowRanges[1]).Split(codeRanges, ',', StringSplitOptions.TrimEntries);
-        foreach (var codeRange in codeRanges)
-        {
-            var row = csv.AsSpan(codeRange);
-            if (row.Contains("A$1=", StringComparison.InvariantCultureIgnoreCase))
-            {
-                
-            }
-        }
-        
-        foreach (var rowRange in rowRanges)
-        {
-            var row = csv.AsSpan(rowRange);
-            if (row.Contains(date.ToString("dd-MMM-yyyy"), StringComparison.InvariantCultureIgnoreCase))
-            {
-                Span<Range> rateRanges = stackalloc Range[18];
-                row.Split(rateRanges, ',', StringSplitOptions.TrimEntries);
-
-                return
-                [
-                    new CurrencyRate(Currency.Codes.USD, decimal.Parse(row[rateRanges[1]])),
-                    new CurrencyRate(Currency.Codes.CNY, decimal.Parse(row[rateRanges[3]]))
-                ];
-            }
-        }
-
-        return [];
-    }
 }
-
 public sealed record CurrencyRate(string CurrencyCode, decimal Rate);
 
-public static class Currency
-{
-    public static class Codes
-    {
-        public const string USD = "USD";
-        public const string CNY = "USD";
-    }
-}
