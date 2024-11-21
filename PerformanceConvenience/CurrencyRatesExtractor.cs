@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace PerformanceConvenience;
 
 public static class CurrencyRatesExtractor
@@ -15,7 +17,11 @@ public static class CurrencyRatesExtractor
         var rates = rows
             .First(s => s.StartsWith(date.ToString("dd-MMM-yyyy")))
             .Split(',')
-            .Select((rateStr, index) => (Rate: decimal.TryParse(rateStr, out var rate1) ? rate1 : -1, Index: index))
+            .Select((rateStr, index) =>
+            {
+                var isDecimal = decimal.TryParse(rateStr, NumberStyles.Any, CultureInfo.InvariantCulture, out var rate);
+                return (Rate: isDecimal ? rate : -1, Index: index);
+            })
             .Where(rates => rates.Rate > 0)
             .ToArray();
         
@@ -58,15 +64,15 @@ public static class CurrencyRatesExtractor
             }
         }
 
-        for (var i = 0; i < codeRanges.Length; i++)
+        for (var i = 0; i < codeRanges.Length || i < rateRanges.Length; i++)
         {
             var rateRange = rateRanges[i];
             if (rateRange.End.Value - rateRange.Start.Value == 0)
                 continue;
             
             var codeChars = codeLine[codeRanges[i]];
-            if (codeChars.Contains("A$", StringComparison.InvariantCultureIgnoreCase))
-                result.Add(new CurrencyRate(codeChars.Slice(4, 3).ToString(), decimal.Parse(rateLine[rateRange])));
+            if (codeChars.StartsWith("A$", StringComparison.InvariantCultureIgnoreCase))
+                result.Add(new CurrencyRate(codeChars.Slice(4, 3).ToString(), decimal.Parse(rateLine[rateRange], NumberStyles.Any, CultureInfo.InvariantCulture)));
         }
 
         return result.ToArray();

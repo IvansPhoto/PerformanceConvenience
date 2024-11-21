@@ -47,7 +47,7 @@ public class Tests
     {
         var actual = CurrencyRatesExtractor.GetRateConvenience(_csv, _date);
         Assert.That(actual, Is.Not.Empty);
-        CollectionAssert.AreEqual(_expected, actual);
+        Assert.That(actual, Is.EqualTo(_expected).AsCollection);
     }
     
     [Test]
@@ -55,6 +55,6 @@ public class Tests
     {
         var actual = CurrencyRatesExtractor.GetRatePerformance(_csv, _date);
         Assert.That(actual, Is.Not.Empty);
-        CollectionAssert.AreEqual(_expected, actual);
-    }
+        Assert.That(actual, Is.EqualTo(_expected).AsCollection);
+    }    
 }
